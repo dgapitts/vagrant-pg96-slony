@@ -36,8 +36,11 @@ then
   su -c "createuser vagrant" -s /bin/sh postgres
   su -c "createdb -O vagrant pgbench"  -s /bin/sh postgres
   su -c "createdb -O vagrant pgbenchslave"  -s /bin/sh postgres
-  su -c "/usr/pgsql-12/bin/pgbench -i -s 1" -s /bin/sh vagrant
-  su -c "pg_dump -s -p 5432 -h localhost pgbench | psql -h localhost -p 5432 pgbenchslave" -s /bin/sh vagrant
+  su -c "/usr/pgsql-9.6/bin/pgbench -i -s 1 -d pgbench" -s /bin/sh vagrant
+  su -c "pg_dump  -d pgbench -U vagrant | psql -d pgbenchslave -U vagrant" -s /bin/sh vagrant
+  #su -c "psql -d postgres -c $$alter user slonyrep with password 'changeme'$$"  -s /bin/sh postgres
+  su -c "bash /vagrant/setup_slonyrep_dbuser.sh"  -s /bin/sh postgres
+  su -c "createuser slonyrep -P changeme -g pgbench" -s /bin/sh postgres
 
   yum -y install python-psycopg2
   cat /vagrant/bashrc.append.txt >> /tmp/bashrc.append.txt
