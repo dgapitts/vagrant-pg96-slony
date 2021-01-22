@@ -1,0 +1,7 @@
+#! /usr/pgsql-9.6/bin/slonik
+  cluster name = slony_example;
+  node 1 admin conninfo = 'dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme';
+  node 2 admin conninfo = 'dbname=pgbenchslave host=localhost port=5432 user=slonyrep password=changeme';
+  subscribe set ( id = 1, provider = 1, receiver = 2, forward = no);
+
+

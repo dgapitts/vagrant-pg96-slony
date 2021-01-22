@@ -1,0 +1,22 @@
+#! /usr/pgsql-9.6/bin/slonik
+
+cluster name = slony_example;
+
+node 1 admin conninfo = 'dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme';
+node 2 admin conninfo = 'dbname=pgbenchslave host=localhost port=5432 user=slonyrep password=changeme';
+
+init cluster ( id=1, comment = 'Master Node');
+
+create set (id=1, origin=1, comment='All pgbench tables');
+set add table (set id=1, origin=1, id=1, fully qualified name ='public.pgbench_accounts', comment='accounts table');
+set add table (set id=1, origin=1, id=2, fully qualified name ='public.pgbench_branches', comment='branches table');
+set add table (set id=1, origin=1, id=3, fully qualified name ='public.pgbench_tellers', comment='tellers table');
+set add table (set id=1, origin=1, id=4, fully qualified name ='public.pgbench_history', comment='history table');
+
+store node (id=2, comment = 'Slave node', event node=1); 
+store path (server=1, client=2, conninfo='dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme');
+store path (server=2, client=1, conninfo='dbname=pgbenchslave host=localhost port=5432 user=slonyrep password=changeme');
+store listen (origin=1, provider = 1, receiver = 2);
+store listen (origin=2, provider = 2, receiver = 1);
+##store listen (origin=1, provider = 1, receiver = 2);
+##store listen (origin=2, provider = 2, receiver = 1);
