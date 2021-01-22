@@ -27,7 +27,8 @@ then
   
   yum install -y perl
   yum install -y slony1-96
-# Optionally initialize the database and enable automatic start:
+
+   # Optionally initialize the database and enable automatic start:
    /usr/pgsql-9.6/bin/postgresql96-setup initdb
    systemctl enable postgresql-9.6
    systemctl start postgresql-9.6
@@ -37,7 +38,8 @@ then
   su -c "createdb -O vagrant pgbench"  -s /bin/sh postgres
   su -c "createdb -O vagrant pgbenchslave"  -s /bin/sh postgres
   su -c "/usr/pgsql-9.6/bin/pgbench -i -s 1 -d pgbench" -s /bin/sh vagrant
-  su -c "pg_dump  -d pgbench -U vagrant | psql -d pgbenchslave -U vagrant" -s /bin/sh vagrant
+  su -c "bash /vagrant/add-pgbench_history-candidate-PK-for-slony.sh" -s /bin/sh vagrant
+  su -c "pg_dump -s -d pgbench -U vagrant | psql -d pgbenchslave -U vagrant" -s /bin/sh vagrant
   #su -c "psql -d postgres -c $$alter user slonyrep with password 'changeme'$$"  -s /bin/sh postgres
   su -c "bash /vagrant/setup_slonyrep_dbuser.sh"  -s /bin/sh postgres
   su -c "createuser slonyrep -P changeme -g pgbench" -s /bin/sh postgres
@@ -54,16 +56,25 @@ then
   sed -i 's#*/10#*/1#g' /etc/cron.d/sysstat
   #/vagrant/quick-start-setup-pg-ora-demo-scripts.sh
   
-  # default pg_hba.conf doesn't allow md5 i.e. password based authentication 
-  cp /vagrant/pg_hba.conf /tmp/pg_hba.conf
-  su -c "cp -p /var/lib/pgsql/9.6/data/pg_hba.conf /var/lib/pgsql/9.6/data/pg_hba.conf.`date '+%Y%m%d-%H%M'`.bak" -s /bin/sh postgres
-  su -c "cat /tmp/pg_hba.conf > /var/lib/pgsql/9.6/data/pg_hba.conf" -s /bin/sh postgres
+  # https://www.slony.info/documentation/security.html
+  su -c "echo 'localhost:5432:pgbench:slonyrep:changeme' >> ~/.pgpass" -s /bin/sh postgres
+  su -c "echo 'localhost:5432:pgbenchslave:slonyrep:changeme' >> ~/.pgpass" -s /bin/sh postgres
+  su -c "echo 'localhost:5432:pgbench:postgres:changeme' >> ~/.pgpass" -s /bin/sh postgres
+  su -c "echo 'localhost:5432:pgbenchslave:postgres:changeme' >> ~/.pgpass" -s /bin/sh postgres
+  su -c "chmod 600 ~/.pgpass" -s /bin/sh postgres
 
 
   # initial cron
   crontab /vagrant/root_cronjob_monitoring_sysstat_plus_custom_pgmon.txt
 
 
+  # default pg_hba.conf doesn't allow md5 i.e. password based authentication 
+  cp /vagrant/pg_hba.conf /tmp/pg_hba.conf
+  su -c "cp -p /var/lib/pgsql/9.6/data/pg_hba.conf /var/lib/pgsql/9.6/data/pg_hba.conf.`date '+%Y%m%d-%H%M'`.bak" -s /bin/sh postgres
+  su -c "cat /tmp/pg_hba.conf > /var/lib/pgsql/9.6/data/pg_hba.conf" -s /bin/sh postgres
+  systemctl stop postgresql-9.6
+  systemctl start postgresql-9.6
+  systemctl status postgresql-9.6
 else
   echo "already installed flag set : /home/vagrant/already-installed-flag"
 fi
