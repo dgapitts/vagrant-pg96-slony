@@ -3,7 +3,108 @@
 
 Training environment for learning how to setup slony replication.
 
-Still not quite there but making progress and have documented some lessons learnt so far.
+*I've got this setup and working now*, after reading the slony overview document from dalibo (https://public.dalibo.com/exports/conferences/_archives/_2011/201110_slony/pgconfeu_slony.pdf).
+
+The last two things I've done
+
+* set listen_addresses='*' in postgres.conf
+* added final setup_slony_master_and_slave.sh (before i.e. below, I was only slarting the master slon process - hence the connectivity problems I was getting below )
+
+```
+~/projects/vagrant-pg96-slony $ cat setup_slony_master_and_slave.sh
+. ~/.bash_profile
+mkdir /tmp/master
+cd /tmp/master
+/usr/pgsql-9.6/bin/slonik /vagrant/init_master.slonik &
+sleep 2
+mkdir /tmp/slave
+cd /tmp/slave
+/usr/pgsql-9.6/bin/slonik /vagrant/init_slave.slonik &
+sleep 2
+cd /tmp/master
+nohup slon slony_example "dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme" &
+sleep 2
+cd /tmp/slave
+nohup slon slony_example "dbname=pgbenchslave  host=localhost port=5432 user=slonyrep password=changeme" &
+```
+
+Note: this is 99% scripted i.e. you should just need to type vagrant up, although I did need to start the master and slave slon processes manually i.e. for some reason the called embedded within the setup_slony_master_and_slave.sh are not working (maybe sort sort of missing env parameter with shell scripts call shell scripts) 
+
+
+```
+~/projects/vagrant-pg96-slony $ vagrant ssh
+Last login: Fri Jan 22 17:17:25 2021
+[pg96slony:vagrant:~] # pg
+Last login: Fri Jan 22 17:17:39 UTC 2021
+[pg96slony:postgres:~] #  PGPASSWORD=changeme psql -U slonyrep -h localhost -p 5432 -d pgbenchslave -c "select count(*) from pgbench_branches;"
+ count
+-------
+     0
+(1 row)
+
+[pg96slony:postgres:~] # ps -ef|grep slon
+postgres  3944  3895  0 17:19 pts/0    00:00:00 grep --color=auto slon
+[pg96slony:postgres:~] # cat /tmp/setup_slony_master_and_slave.sh
+. ~/.bash_profile
+mkdir /tmp/master
+cd /tmp/master
+/usr/pgsql-9.6/bin/slonik /vagrant/init_master.slonik &
+sleep 2
+mkdir /tmp/slave
+cd /tmp/slave
+/usr/pgsql-9.6/bin/slonik /vagrant/init_slave.slonik &
+sleep 2
+cd /tmp/master
+nohup slon slony_example "dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme" &
+sleep 2
+cd /tmp/slave
+nohup slon slony_example "dbname=pgbenchslave  host=localhost port=5432 user=slonyrep password=changeme" &
+
+[pg96slony:postgres:~] # cd /tmp/master
+[pg96slony:postgres:/tmp/master] # lt
+total 0
+[pg96slony:postgres:/tmp/master] # cd /tmp/master
+[pg96slony:postgres:/tmp/master] # nohup slon slony_example "dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme" &
+[1] 3968
+[pg96slony:postgres:/tmp/master] # nohup: ignoring input and appending output to ‘nohup.out’
+
+[pg96slony:postgres:/tmp/master] # cd /tmp/slave
+[pg96slony:postgres:/tmp/slave] # nohup slon slony_example "dbname=pgbenchslave  host=localhost port=5432 user=slonyrep password=changeme" &
+[2] 3985
+[pg96slony:postgres:/tmp/slave] # nohup: ignoring input and appending output to ‘nohup.out’
+
+[pg96slony:postgres:/tmp/slave] #  PGPASSWORD=changeme psql -U slonyrep -h localhost -p 5432 -d pgbenchslave -c "select count(*) from pgbench_branches;"
+ count
+-------
+     1
+(1 row)
+
+[pg96slony:postgres:/tmp/slave] # ps -ef|grep slon
+postgres  3968  3895  0 17:20 pts/0    00:00:00 slon slony_example dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme
+postgres  3969  3968  0 17:20 pts/0    00:00:00 slon slony_example dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme
+postgres  3973  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbench ::1(47480) idle
+postgres  3979  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbenchslave ::1(47482) idle
+postgres  3980  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbench ::1(47484) idle
+postgres  3981  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbench ::1(47486) idle
+postgres  3982  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbench ::1(47488) idle
+postgres  3983  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbench ::1(47490) idle
+postgres  3985  3895  0 17:20 pts/0    00:00:00 slon slony_example dbname=pgbenchslave  host=localhost port=5432 user=slonyrep password=changeme
+postgres  3986  3985  0 17:20 pts/0    00:00:00 slon slony_example dbname=pgbenchslave  host=localhost port=5432 user=slonyrep password=changeme
+postgres  3990  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbenchslave ::1(47494) idle
+postgres  3996  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbench ::1(47496) idle
+postgres  3997  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbenchslave ::1(47498) idle
+postgres  3998  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbenchslave ::1(47500) idle
+postgres  3999  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbenchslave ::1(47502) idle
+postgres  4000  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbenchslave ::1(47504) idle
+postgres  4002  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbench ::1(47508) idle
+postgres  4003  3801  0 17:20 ?        00:00:00 postgres: slonyrep pgbenchslave ::1(47510) idle
+postgres  4021  3895  0 17:21 pts/0    00:00:00 grep --color=auto slon
+[pg96slony:postgres:/tmp/slave] # psql -U slonyrep -h localhost -p 5432 -d pgbenchslave -c "select count(*) from pgbench_branches;"
+ count
+-------
+     1
+(1 row)
+```
 
 
 ## Useful documentation for slony (reference)
@@ -19,7 +120,7 @@ Still not quite there but making progress and have documented some lessons learn
 
 
 
-## Latest status - setup seems almost complete although still hitting connectivity issues between master and slave 
+## Earlier issues - setup seems almost complete although still hitting connectivity issues between master and slave 
 To install slony we first need to install perl
 
 ```
@@ -57,6 +158,23 @@ waiting for events  (2,5000000001) only at (2,0) to be confirmed on node 1
 waiting for events  (2,5000000001) only at (2,0) to be confirmed on node 1
 
 Second Session
+[pg96slony:postgres:~] #  nohup slon slony_example "dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme" &
+[1] 4100
+[pg96slony:postgres:~] # nohup: ignoring input and appending output to ‘nohup.out’
+
+[pg96slony:postgres:~] #
+[pg96slony:postgres:~] # tail -f nohup.out
+2021-01-21 21:13:18 UTC CONFIG version for "dbname=pgbenchslave host=localhost port=5432 user=slonyrep password=changeme" is 90620
+2021-01-21 21:13:18 UTC CONFIG version for "dbname=pgbench  host=localhost port=5432 user=slonyrep password=changeme" is 90620
+2021-01-21 21:13:18 UTC CONFIG remoteWorkerThread_2: update provider configuration
+2021-01-21 21:13:18 UTC CONFIG cleanupThread: bias = 60
+2021-01-21 21:13:18 UTC CONFIG storeListen: li_origin=2 li_receiver=1 li_provider=2
+2021-01-21 21:13:18 UTC CONFIG remoteWorkerThread_2: update provider configuration
+2021-01-21 21:13:20 UTC CONFIG storeListen: li_origin=2 li_receiver=1 li_provider=2
+2021-01-21 21:13:20 UTC CONFIG remoteWorkerThread_2: update provider configuration
+2021-01-21 21:13:20 UTC CONFIG storeListen: li_origin=2 li_receiver=1 li_provider=2
+2021-01-21 21:13:20 UTC CONFIG remoteWorkerThread_2: update provider configuration
+^C
 [pg96slony:postgres:~] # tail -1000f nohup.out
 2021-01-21 21:13:18 UTC CONFIG main: slon version 2.2.10 starting up
 2021-01-21 21:13:18 UTC INFO   slon: watchdog process started
@@ -129,7 +247,6 @@ Second Session
 2021-01-21 21:15:40 UTC CONFIG storeListen: li_origin=2 li_receiver=1 li_provider=2
 2021-01-21 21:15:40 UTC CONFIG remoteWorkerThread_2: update provider configuration
 2021-01-21 21:19:26 UTC CONFIG storeListen: li_origin=2 li_receiver=1 li_provider=2
-2021-01-21 21:19:26 UTC CONFIG remoteWorkerThread_2: update provider configuration
 ```
 * Partially work in that they setup the _slony_example schema and added triggers
 
