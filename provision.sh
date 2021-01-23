@@ -72,9 +72,21 @@ then
   cp /vagrant/pg_hba.conf /tmp/pg_hba.conf
   su -c "cp -p /var/lib/pgsql/9.6/data/pg_hba.conf /var/lib/pgsql/9.6/data/pg_hba.conf.`date '+%Y%m%d-%H%M'`.bak" -s /bin/sh postgres
   su -c "cat /tmp/pg_hba.conf > /var/lib/pgsql/9.6/data/pg_hba.conf" -s /bin/sh postgres
+  # set listen_addresses='*' in postgresql.conf
+  cp /vagrant/postgresql.conf /tmp/postgresql.conf
+  su -c "cp -p /var/lib/pgsql/9.6/data/postgresql.conf /var/lib/pgsql/9.6/data/postgresql.conf.`date '+%Y%m%d-%H%M'`.bak" -s /bin/sh postgres
+  su -c "cat /tmp/postgresql.conf > /var/lib/pgsql/9.6/data/postgresql.conf" -s /bin/sh postgres
   systemctl stop postgresql-9.6
   systemctl start postgresql-9.6
   systemctl status postgresql-9.6
+
+  # and finally initialize slony master and slave, plus start the master and slave processes
+  cp /vagrant/setup_slony_master_and_slave.sh /tmp/setup_slony_master_and_slave.sh
+  su -c "bash /tmp/setup_slony_master_and_slave.sh" -s /bin/sh postgres
+
+ 
+
+  
 else
   echo "already installed flag set : /home/vagrant/already-installed-flag"
 fi
